@@ -8,7 +8,7 @@ from requests.auth import HTTPBasicAuth
 import json
 from dotenv import load_dotenv
 import os
-from datetime import datetime
+from datetime import time
 from pathlib import Path
 
 # Local
@@ -21,9 +21,24 @@ pw = os.getenv("Password")
 
 
 # Morning train info
-EXPECTED_TIME = datetime.strptime(os.getenv("expected_train_time"), "%H:%M")
-EXPECTED_START_STN_CD = os.getenv("expected_start_station")
-EXPECTED_END_STN_CD = os.getenv("expected_end_station")
+exp_tt = os.getenv("expected_train_time", "12:00")
+print(exp_tt)
+EXPECTED_DEPARTURE_TIME = time(int(exp_tt[:2]), int(exp_tt[3:]))
+SERVICE_START_TIPLOC = os.getenv("expected_start_station")
+SERVICE_END_TIPLOC = os.getenv("expected_end_station")
+print(EXPECTED_DEPARTURE_TIME)
+
+
+SERVICE_DESC = """
+The service from {} to {} is departing Vauxhall at {}.
+
+Information
+===================
+It will arrive at Platform {} at {}.
+It was scheduled to depart at {}.
+This train is {}.
+
+"""
 
 
 def call_api(mock=True, write_mock_data=False) -> dict:
@@ -66,26 +81,35 @@ def find_service(response: dict):
     # Validate service against model
     for s in services:
         service = Service(**s)  # Validating every service is quite cumbersome, should use a light-weight check first
-        platform = service.location_detail.platform
-        origin = service.location_detail.origin[0].description
-        destination = service.location_detail.destination[0].description
-        scheduled_arrival = service.location_detail.scheduled_arrival
-        scheduled_departure = service.location_detail.scheduled_departure
-        actual_arrival = service.location_detail.scheduled_arrival
-        actual_departure = service.location_detail.actual_departure
+        
+        if (
+            service.location_detail.origin[0].tiploc == SERVICE_START_TIPLOC
+            and service.location_detail.destination[0].tiploc == SERVICE_END_TIPLOC
+            and service.location_detail.scheduled_departure == EXPECTED_DEPARTURE_TIME
+        ):
+            
+        
+            platform = service.location_detail.platform
+            origin = service.location_detail.origin[0].description
+            destination = service.location_detail.destination[0].description
+            scheduled_arrival = service.location_detail.scheduled_arrival
+            scheduled_departure = service.location_detail.scheduled_departure
+            actual_arrival = service.location_detail.scheduled_arrival
+            actual_departure = service.location_detail.actual_departure
 
-        service_string = f"""
-The service from {origin} to {destination} is departing Vauxhall at {actual_departure}.
+            punc = 'LATE' if actual_departure != scheduled_departure else 'ON TIME'
 
-Information
-===================
-It will arrive at Platform {platform} at {actual_arrival}.
-It was scheduled to depart at {scheduled_departure}.
-This train is {'LATE' if actual_departure != scheduled_departure else 'ON TIME'}.
-
-"""
-        print(service_string)
-        break
+            print(
+                SERVICE_DESC.format(
+                    origin,
+                    destination,
+                    actual_departure,
+                    platform,
+                    actual_arrival,
+                    scheduled_departure,
+                    punc,
+                )
+            )
     return
 
 
