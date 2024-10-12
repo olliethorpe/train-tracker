@@ -4,7 +4,6 @@ When the app is refreshed it will scan the departures, find the one to staines a
 
 import json
 import os
-import time as tm
 from datetime import time
 from pathlib import Path
 
@@ -115,7 +114,7 @@ if __name__ == "__main__":
     actual_arrival = service.location_detail.scheduled_arrival
     actual_departure = service.location_detail.actual_departure
 
-    punc = 'LATE' if actual_departure != scheduled_departure else 'ON TIME'
+    punctuality = 'LATE' if actual_departure != scheduled_departure else 'ON TIME'
 
     print(
         SERVICE_DESC.format(
@@ -125,6 +124,6 @@ if __name__ == "__main__":
             platform,
             actual_arrival,
             scheduled_departure,
-            punc,
+            punctuality,
         )
     )
