@@ -41,17 +41,17 @@ This train is {}.
 """
 
 
-def call_api(mock=True, write_mock_data=False) -> dict:
-    """_summary_
+def get_station_departures(station_code: str, mock=True, write_mock_data=True) -> dict:
+    """Get the next hour of scheduled departures for a given station from the real time trains api.
 
     Args:
-        mock (bool, optional): _description_. Defaults to True.
-        write_mock_data (bool, optional): _description_. Defaults to False.
+        station_code (str): The station of interest.
+        mock (bool, optional): For testing. Use a mock data set to avoid request spamming. Defaults to True.
+        write_mock_data (bool, optional): Write api response to mock data set. Defaults to False.
 
     Returns:
-        dict: _description_
+        dict: Api response as a json object.
     """
-    # Reduce api load by mocking response
     mock_data_path = "./example_response.json"
     if mock and Path(mock_data_path).exists():
         with open(mock_data_path) as f:
@@ -59,7 +59,7 @@ def call_api(mock=True, write_mock_data=False) -> dict:
         print("Using mock data")
         return res
 
-    r = requests.get(RT_TRAINS_URL + "json/search/VXH", auth=HTTPBasicAuth(user, pw))
+    r = requests.get(RT_TRAINS_URL + f"json/search/{station_code}", auth=HTTPBasicAuth(user, pw))
     response = r.text
 
     if write_mock_data:
@@ -70,46 +70,61 @@ def call_api(mock=True, write_mock_data=False) -> dict:
     return json.loads(response)
 
 
-def find_service(response: dict):
-    # Extract services
-    if services := response.get("services"):
-        print(f"Found {len(services)} services.")
-    else:
-        print("Could not find services in response.")
+def find_service(data: dict, start_tiploc: str, end_tiploc: str, expected_departure: time) -> Service:
+    """Return the service with matching start & end tiplocs (location codes) and expected departure time from the real \
+    time trains api response.
 
-    for s in services:
-        service = Service(**s)  # Validating every service is quite cumbersome, should use a light-weight check first
-        if (
-            service.location_detail.origin[0].tiploc == SERVICE_START_TIPLOC
-            and service.location_detail.destination[0].tiploc == SERVICE_END_TIPLOC
-            and service.location_detail.scheduled_departure == EXPECTED_DEPARTURE_TIME
-        ):
-            platform = service.location_detail.platform
-            origin = service.location_detail.origin[0].description
-            destination = service.location_detail.destination[0].description
-            scheduled_arrival = service.location_detail.scheduled_arrival
-            scheduled_departure = service.location_detail.scheduled_departure
-            actual_arrival = service.location_detail.scheduled_arrival
-            actual_departure = service.location_detail.actual_departure
+    Args:
+        data (dict): Dict containing service information for given platform.
+        start_tiploc (str): Location code of starting station.
+        end_tiploc (str): Location code of ending station.
+        expected_departure (time): Expected departure time from traget station.
 
-            punc = 'LATE' if actual_departure != scheduled_departure else 'ON TIME'
+    Raises:
+        ValueError: When a matching service cannot be found.
+        Exception: When service information is not part of the input data set.
 
-            print(
-                SERVICE_DESC.format(
-                    origin,
-                    destination,
-                    actual_departure,
-                    platform,
-                    actual_arrival,
-                    scheduled_departure,
-                    punc,
-                )
-            )
-            break
-    return
+    Returns:
+        Service: The service matching the inpout parameters.
+    """
+    if services := data.get("services"):
+        for s in services:
+            service = Service(**s)  # Cumbersome?
+            if (
+                service.location_detail.origin[0].tiploc == start_tiploc
+                and service.location_detail.destination[0].tiploc == end_tiploc
+                and service.location_detail.scheduled_departure == expected_departure
+            ):
+                return service
+
+        raise ValueError(
+            f"Cannot find service from {start_tiploc} to {end_tiploc} departing station at {expected_departure}"
+        )
+    raise Exception("Could not find services in response.")
 
 
 if __name__ == "__main__":
-    response = call_api(mock=True, write_mock_data=False)
-    result = find_service(response)
-    print(result)
+    response = get_station_departures('VXH', mock=False)
+    service = find_service(response, SERVICE_START_TIPLOC, SERVICE_END_TIPLOC, EXPECTED_DEPARTURE_TIME)
+
+    platform = service.location_detail.platform
+    origin = service.location_detail.origin[0].description
+    destination = service.location_detail.destination[0].description
+    scheduled_arrival = service.location_detail.scheduled_arrival
+    scheduled_departure = service.location_detail.scheduled_departure
+    actual_arrival = service.location_detail.scheduled_arrival
+    actual_departure = service.location_detail.actual_departure
+
+    punc = 'LATE' if actual_departure != scheduled_departure else 'ON TIME'
+
+    print(
+        SERVICE_DESC.format(
+            origin,
+            destination,
+            actual_departure,
+            platform,
+            actual_arrival,
+            scheduled_departure,
+            punc,
+        )
+    )
