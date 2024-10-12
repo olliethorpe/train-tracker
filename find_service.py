@@ -2,14 +2,16 @@
 When the app is refreshed it will scan the departures, find the one to staines at 7:37 and display information about that train.
 """
 
-# 3rd party
-import requests
-from requests.auth import HTTPBasicAuth
 import json
-from dotenv import load_dotenv
 import os
+import time as tm
 from datetime import time
 from pathlib import Path
+
+# 3rd party
+import requests
+from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 
 # Local
 from service_model import Service
@@ -22,12 +24,10 @@ pw = os.getenv("Password")
 
 # Morning train info
 exp_tt = os.getenv("expected_train_time", "12:00")
-print(exp_tt)
 EXPECTED_DEPARTURE_TIME = time(int(exp_tt[:2]), int(exp_tt[3:]))
 SERVICE_START_TIPLOC = os.getenv("expected_start_station")
 SERVICE_END_TIPLOC = os.getenv("expected_end_station")
-print(EXPECTED_DEPARTURE_TIME)
-
+RT_TRAINS_URL = os.getenv('rttrains_url')
 
 SERVICE_DESC = """
 The service from {} to {} is departing Vauxhall at {}.
@@ -59,8 +59,7 @@ def call_api(mock=True, write_mock_data=False) -> dict:
         print("Using mock data")
         return res
 
-    url = "https://api.rtt.io/api/v1/"
-    r = requests.get(url + "json/search/VXH", auth=HTTPBasicAuth(user, pw))
+    r = requests.get(RT_TRAINS_URL + "json/search/VXH", auth=HTTPBasicAuth(user, pw))
     response = r.text
 
     if write_mock_data:
@@ -78,17 +77,13 @@ def find_service(response: dict):
     else:
         print("Could not find services in response.")
 
-    # Validate service against model
     for s in services:
         service = Service(**s)  # Validating every service is quite cumbersome, should use a light-weight check first
-        
         if (
             service.location_detail.origin[0].tiploc == SERVICE_START_TIPLOC
             and service.location_detail.destination[0].tiploc == SERVICE_END_TIPLOC
             and service.location_detail.scheduled_departure == EXPECTED_DEPARTURE_TIME
         ):
-            
-        
             platform = service.location_detail.platform
             origin = service.location_detail.origin[0].description
             destination = service.location_detail.destination[0].description
@@ -110,6 +105,7 @@ def find_service(response: dict):
                     punc,
                 )
             )
+            break
     return
 
 
