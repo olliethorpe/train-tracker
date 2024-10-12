@@ -56,7 +56,7 @@ def call_api(mock=True, write_mock_data=False) -> dict:
     return json.loads(response)
 
 
-def parse_response(response: dict):
+def find_service(response: dict):
     # Extract services
     if services := response.get("services"):
         print(f"Found {len(services)} services.")
@@ -65,20 +65,31 @@ def parse_response(response: dict):
 
     # Validate service against model
     for s in services:
-        service = Service(**s)
+        service = Service(**s)  # Validating every service is quite cumbersome, should use a light-weight check first
         platform = service.location_detail.platform
         origin = service.location_detail.origin[0].description
+        destination = service.location_detail.destination[0].description
         scheduled_arrival = service.location_detail.scheduled_arrival
         scheduled_departure = service.location_detail.scheduled_departure
+        actual_arrival = service.location_detail.scheduled_arrival
         actual_departure = service.location_detail.actual_departure
-        print(f"There is a train departing from Platform {platform} at {actual_departure}.")
-        print(scheduled_arrival)
-        print(actual_departure)
+
+        service_string = f"""
+The service from {origin} to {destination} is departing Vauxhall at {actual_departure}.
+
+Information
+===================
+It will arrive at Platform {platform} at {actual_arrival}.
+It was scheduled to depart at {scheduled_departure}.
+This train is {'LATE' if actual_departure != scheduled_departure else 'ON TIME'}.
+
+"""
+        print(service_string)
         break
-    return {}
+    return
 
 
 if __name__ == "__main__":
-    response = call_api(mock=False, write_mock_data=True)
-    result = parse_response(response)
+    response = call_api(mock=True, write_mock_data=False)
+    result = find_service(response)
     print(result)
