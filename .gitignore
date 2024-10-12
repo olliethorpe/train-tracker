@@ -163,3 +163,4 @@ cython_debug/
 
 # Ref data
 example_response.json
+.vscode

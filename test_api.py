@@ -1,6 +1,7 @@
 """
 When the app is refreshed it will scan the departures, find the one to staines at 7:37 and display information about that train.
 """
+
 # 3rd party
 import requests
 from requests.auth import HTTPBasicAuth
@@ -15,14 +16,14 @@ from service_model import Service
 
 load_dotenv()
 
-user = os.getenv('Username')
-pw = os.getenv('Password')
+user = os.getenv("Username")
+pw = os.getenv("Password")
 
 
 # Morning train info
-EXPECTED_TIME = datetime.strptime(os.getenv('expected_train_time'), "%H:%M")
-EXPECTED_START_STN_CD = os.getenv('expected_start_station')
-EXPECTED_END_STN_CD = os.getenv('expected_end_station')
+EXPECTED_TIME = datetime.strptime(os.getenv("expected_train_time"), "%H:%M")
+EXPECTED_START_STN_CD = os.getenv("expected_start_station")
+EXPECTED_END_STN_CD = os.getenv("expected_end_station")
 
 
 def call_api(mock=True, write_mock_data=False) -> dict:
@@ -36,20 +37,20 @@ def call_api(mock=True, write_mock_data=False) -> dict:
         dict: _description_
     """
     # Reduce api load by mocking response
-    mock_data_path = './example_response.json'
+    mock_data_path = "./example_response.json"
     if mock and Path(mock_data_path).exists():
         with open(mock_data_path) as f:
             res = json.load(f)
-        print('Using mock data')
+        print("Using mock data")
         return res
 
-    url = 'https://api.rtt.io/api/v1/'
-    r = requests.get(url + 'json/search/VXH', auth=HTTPBasicAuth(user, pw))
+    url = "https://api.rtt.io/api/v1/"
+    r = requests.get(url + "json/search/VXH", auth=HTTPBasicAuth(user, pw))
     response = r.text
 
     if write_mock_data:
-        print('Writing mock data')
-        with open(mock_data_path, 'w') as f:
+        print("Writing mock data")
+        with open(mock_data_path, "w") as f:
             f.write(response)
 
     return json.loads(response)
@@ -57,15 +58,23 @@ def call_api(mock=True, write_mock_data=False) -> dict:
 
 def parse_response(response: dict):
     # Extract services
-    if services := response.get('services'):
-        print(f'Found {len(services)} services.')
+    if services := response.get("services"):
+        print(f"Found {len(services)} services.")
     else:
-        print('Could not find services in response.')
+        print("Could not find services in response.")
 
     # Validate service against model
     for s in services:
         service = Service(**s)
-
+        platform = service.location_detail.platform
+        origin = service.location_detail.origin[0].description
+        scheduled_arrival = service.location_detail.scheduled_arrival
+        scheduled_departure = service.location_detail.scheduled_departure
+        actual_departure = service.location_detail.actual_departure
+        print(f"There is a train departing from Platform {platform} at {actual_departure}.")
+        print(scheduled_arrival)
+        print(actual_departure)
+        break
     return {}
 
 
