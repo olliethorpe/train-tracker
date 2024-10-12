@@ -18,7 +18,12 @@ def call_api():
     return requests.get(url + 'json/search/VXH', auth=HTTPBasicAuth(user, pw))
 
 
+def parse_response(response: dict):
+    pass
+
+
 if __name__ == "__main__":
     response = call_api()
     response_json = json.loads(response.text)
-    print(response_json)
+    result = parse_response(response_json)
+    print(result)
